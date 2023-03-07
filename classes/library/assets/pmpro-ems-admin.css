@@ -1,0 +1,32 @@
+.pmpro-ems-scrollable {
+    overflow: auto;
+    max-height: 110px;
+    width: 300px;
+    background: #FFFFFF;
+    border: 1px solid #CCC;
+    padding: 10px;
+}
+
+.pmpro-ems-scrollable p,
+.form-table td .pmpro-ems-scrollable p {
+    margin-top: 0;
+    margin-bottom: 5px;
+}
+
+.pmpro-ems-scrollable p:last-child,
+.form-table td .pmpro-ems-scrollable p:last-child {
+    margin-bottom: 0;
+}
+
+.pmpro-oauth-connected {
+    color: #00a32a;
+}
+
+.pmpro-oauth-connected .button {
+    margin-left: 10px;
+}
+
+.pmpro-oauth-error {
+    color: #d63638;
+    padding-bottom: 10px;
+}
