@@ -1038,8 +1038,16 @@ class EMS extends Settings {
      * @return bool
      */
     public function has_excluded_role( $user ) {
+        if ( ! $user ) {
+            return false;
+        }
+
         if ( ! is_a( $user, 'WP_User') ) {
             $user = get_user_by( 'id', $user );
+        }
+
+        if ( ! $user ) {
+            return false;
         }
 
         $excluded_roles = $this->get_option( 'exclude_roles', [] );

@@ -69,7 +69,7 @@ class Constant_Contact extends EMS {
         parent::__construct();
 
         add_action( 'plugins_loaded', [ $this, 'load_textdomain' ] );
-        add_action(  'pmpro_' . $this->get_settings_id() . '_bulk_change_data', [ $this, 'maybe_add_custom_fields_for_bulk_update' ], 2 );
+        add_action(  'pmpro_' . $this->get_settings_id() . '_bulk_change_data', [ $this, 'maybe_add_custom_fields_for_bulk_update' ], 20, 2 );
 
         $this->get_api()->oauth_hooks();
 
