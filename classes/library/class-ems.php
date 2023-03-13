@@ -83,6 +83,7 @@ class EMS extends Settings {
         add_action( 'pmpro_after_all_membership_level_changes', [ $this, 'membership_changes' ] );
         add_action( 'wp_ajax_pmpro_ems_clear_cache_' . $this->id, [ $this, 'clear_cache_ajax' ] );
         add_action( 'pmpro_' . $this->id . '_settings_before_options', [ $this, 'settings_description' ] );
+        add_action( 'pmpro_' . $this->id . '_settings_before_options', [ $this, 'show_notice_if_lists_used_on_multiple' ] );
 
         add_filter( 'plugin_row_meta', [ $this, 'row_meta' ], 10, 2 );
         add_filter( 'plugin_action_links_' . plugin_basename( $this->plugin_file ), [ $this, 'plugin_links' ] );
@@ -93,6 +94,65 @@ class EMS extends Settings {
         $this->get_cache();
 
         parent::__construct();
+    }
+
+    /**
+     * Show Notice if Lists used on Multiple.
+     *
+     * @return void
+     */
+    public function show_notice_if_lists_used_on_multiple() {
+        $non_member_lists = $this->get_option('non_member_list', [] );
+        $optin_lists      = $this->get_option('optin', [] );
+        $level_lists      = $this->get_option('audience_levels', [] );
+
+        $all_arrays = array( $non_member_lists, $optin_lists );
+        foreach ( $level_lists as $level_array ) {
+            $all_arrays[] = $level_array;
+        }
+
+        $list_arrays_count = count( $all_arrays );
+        $non_unique_lists  = array();
+
+        while( $list_arrays_count > 0 ) {
+            $diff = call_user_func_array('array_diff', $all_arrays );
+
+            // If diff array is empty, it might mean all are shared somewhere.
+            $array_checked = current( $all_arrays );
+            $non_unique    = array_diff( $array_checked, $diff );
+            if ( $non_unique ) {
+                foreach ( $non_unique as $non_unique_list_id ) {
+                    $non_unique_lists[] = $non_unique_list_id;
+                }
+            }
+
+            $first_array = array_shift($all_arrays);
+            // Move it to back.
+            $all_arrays[] = $first_array;
+            $list_arrays_count--;
+        }
+
+        $non_unique_lists = array_unique( $non_unique_lists );
+        if ( $non_unique_lists ) {
+            $lists = $this->get_lists();
+            ?>
+            <div class="notice notice-error">
+                <p><?php esc_html_e( 'These lists are set more than once in the settings below.', 'pmpro-constantcontact'  ); ?></p>
+                <p><?php esc_html_e( 'This can cause users getting unsubscribed or subscribed where you don\'t want it.', 'pmpro-constantcontact'  ); ?></p>
+                <p><?php esc_html_e( 'Lists:', 'pmpro-constantcontact'  ); ?></p>
+
+                <ul>
+                    <?php
+                    foreach ( $non_unique_lists as $non_unique_list_id ) {
+                        ?>
+                        <li><strong><?php echo esc_html( $lists[ $non_unique_list_id ] ); ?></strong></li>
+                        <?php
+                    }
+                    ?>
+                </ul>
+            </div>
+            <?php
+        }
     }
 
     /**
@@ -385,6 +445,14 @@ class EMS extends Settings {
                 'type'        => 'text'
             ];
 
+            $this->fields['api_redirect'] = [
+                'name'        => 'api_redirect',
+                'title'       => __( 'Redirect URI', 'pmpro-constantcontact' ),
+                'section'     => 'api',
+                'type'        => 'redirect_url',
+                'description' => __( 'Add this URL as redirect URI to your Application', 'pmpro-constantcontact' ),
+            ];
+
             $this->fields['oauth'] = [
                 'name'        => 'oauth',
                 'title'       => __( 'Connect with Service', 'pmpro-constantcontact' ),
@@ -414,12 +482,21 @@ class EMS extends Settings {
             'description' => __( 'If a user has registered, but not yet on any member plan, they\'ll get subscribed to this list', 'pmpro-constantcontact' )
         ];
 
+        $this->fields['optin_label'] = [
+            'name'        => 'optin_label',
+            'title'       => __( 'Opt-in Label', 'pmpro-constantcontact' ),
+            'section'     => 'audience',
+            'type'        => 'text',
+            'default'     => __( 'Join our mailing lists. ', 'pmpro-constantcontact' ),
+            'description' => __( 'Lists to be presented for opt-in on checkout or profile page. If only one Opt-in list is selected, this will be used as label.', 'pmpro-constantcontact' )
+        ];
+
         $this->fields['optin'] = [
             'name'        => 'optin',
-            'title'       => __( 'Opt-in Audiences', 'pmpro-constantcontact' ),
+            'title'       => __( 'Opt-in Lists', 'pmpro-constantcontact' ),
             'section'     => 'audience',
             'type'        => 'lists',
-            'description' => __( 'Lists to be presented for opt-in on checkout', 'pmpro-constantcontact' )
+            'description' => __( 'Lists to be presented for opt-in on checkout or profile page.', 'pmpro-constantcontact' )
         ];
 
         $this->fields['exclude_roles'] = [
@@ -428,15 +505,6 @@ class EMS extends Settings {
             'section'     => 'audience',
             'type'        => 'roles',
             'description' => __( 'Checked roles won\'t be added to lists.', 'pmpro-constantcontact' )
-        ];
-
-        $this->fields['optin_label'] = [
-            'name'        => 'optin_label',
-            'title'       => __( 'Opt-in Label', 'pmpro-constantcontact' ),
-            'section'     => 'audience',
-            'type'        => 'text',
-            'default'     => __( 'Join our mailing lists. ', 'pmpro-constantcontact' ),
-            'description' => __( 'Lists to be presented for opt-in on checkout', 'pmpro-constantcontact' )
         ];
 
         $this->fields['audience_levels'] = [
@@ -470,6 +538,17 @@ class EMS extends Settings {
                 'type'        => 'tags_levels',
                 'section'     => 'tags'
             ];
+        }
+    }
+
+    public function render_redirect_url( $field ) {
+        ?>
+        <input readonly type="text" class="widefat" value="<?php echo esc_url( home_url() ); ?>" />
+        <?php
+        if ( ! empty( $field['description'] ) ) {
+            ?>
+            <p class="description"><?php echo esc_html( $field['description'] ); ?></p>
+            <?php
         }
     }
 
@@ -513,7 +592,9 @@ class EMS extends Settings {
         $get_saved_data = false;
 
         // This means that all fields are not shown and posted.
-        if ( ! isset( $input['audience_levels'] ) ) {
+        // We are always showing Opt-in Label field.
+        // It's hidden only when API params are invalid or not added.
+        if ( ! isset( $input['optin_label'] ) ) {
             $get_saved_data = true;
         }
 

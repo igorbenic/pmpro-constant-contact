@@ -13,7 +13,7 @@ class Profile {
     public function __construct( EMS $ems ) {
         $this->ems = $ems;
 
-        add_action( 'user_register', [ $this, 'user_register'] );
+        add_action( 'user_register', [ $this, 'user_register'], 20, 2 );
         add_action( 'personal_options_update', [ $this, 'update_profile' ], 10, 2 );
         add_action( 'edit_user_profile_update', [ $this, 'update_profile' ], 10, 2 );
         add_action( 'pmpro_show_user_profile', [ $this, 'show_optin_lists_on_profile'], 12 );
@@ -26,17 +26,56 @@ class Profile {
      * @param $user_id
      * @return void
      */
-    public function user_register( $user_id ) {
-        $list_id = $this->ems->get_option( 'non_member_list' );
+    public function user_register( $user_id, $user_data ) {
+        $list_ids  = $this->ems->get_option( 'non_member_list' );
+        $bulk_data = array(
+            'lists' => array(
+                'add' => array(),
+                'remove' => array()
+            ),
+            'tags' => array(
+                'add' => array(),
+                'remove' => array()
+            ),
+        );
 
-        if ( $list_id ) {
-            $this->ems->subscribe( $user_id, $list_id );
+        if ( $list_ids ) {
+            if ( ! is_array( $list_ids ) ) {
+                $list_ids = array( $list_ids );
+            }
+
+            if ( ! $this->ems->bulk_update_enabled() ) {
+                foreach ($list_ids as $list_id) {
+                    $this->ems->subscribe($user_id, $list_id);
+                }
+            }
+
+            $bulk_data['lists']['add'] = $list_ids;
         }
 
         $tags_levels = $this->ems->get_option( 'tags_levels' );
 
         if ( isset( $tags_levels['non_member'] ) && $tags_levels['non_member'] ) {
-            $this->ems->tag( $user_id, $tags_levels['non_member'] );
+            if ( ! is_array( $tags_levels['non_member'] ) ) {
+                $tags_levels['non_member'] = array( $tags_levels['non_member'] );
+            }
+            if ( ! $this->ems->bulk_update_enabled() ) {
+                foreach ($tags_levels['non_member'] as $tag_id) {
+                    $this->ems->tag($user_id, $tag_id);
+                }
+            }
+
+            $bulk_data['tags']['add'] = $tags_levels['non_member'];
+        }
+
+        $bulk_data = apply_filters( 'pmpro_' . $this->ems->get_settings_id() . '_bulk_data_on_user_register',
+            $bulk_data,
+            $user_id,
+            $user_data
+        );
+
+        if ( $this->ems->bulk_update_enabled() ) {
+            $this->ems->bulk_change( $user_id, $bulk_data );
         }
     }
 
@@ -84,33 +123,52 @@ class Profile {
      * @return void
      */
     public function subscribe_user_from_profile_update( $user_id ) {
-
         if ( ! isset( $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in_on_profile'] ) ) {
             return;
         }
 
-        if ( ! isset( $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] ) ) {
-            $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] = [];
-        }
+        $bulk_data = array(
+            'lists' => array(
+                'add' => array(),
+                'remove' => array()
+            )
+        );
 
-        foreach ( $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] as $list_id ) {
-            $this->ems->subscribe( $user_id, $list_id );
+        $checked_lists = isset( $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] ) ? $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] : [];
+
+        if ( $checked_lists ) {
+            foreach ( $checked_lists as $list_id ) {
+                if ( ! $this->ems->bulk_update_enabled() ) {
+                    $this->ems->subscribe( $user_id, $list_id );
+                }
+                $bulk_data['lists']['add'] = $list_id;
+            }
         }
 
         $optin_lists = $this->ems->get_option( 'optin' );
 
-        if ( empty( $optin_lists ) ) {
-            return;
+        if ( ! empty( $optin_lists ) ) {
+            // If we are showing some of those lists and user has unchecked them,
+            // Make sure the user is unsuscribed.
+            foreach ( $optin_lists as $index => $optin_list_id ) {
+                if ( in_array( $optin_list_id, $checked_lists ) ) {
+                    continue;
+                }
+
+                if ( ! $this->ems->bulk_update_enabled() ) {
+                    $this->ems->unsubscribe( $user_id, $optin_list_id );
+                }
+                $bulk_data['lists']['remove'] = $optin_list_id;
+            }
         }
 
-        // If we are showing some of those lists and user has unchecked them,
-        // Make sure the user is unsuscribed.
-        foreach ( $optin_lists as $index => $optin_list_id ) {
-            if ( in_array( $optin_list_id, $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] ) ) {
-                continue;
-            }
+        $bulk_data = apply_filters( 'pmpro_' . $this->ems->get_settings_id() . '_bulk_data_on_profile_update',
+            $bulk_data,
+            $user_id
+        );
 
-            $this->ems->unsubscribe( $user_id, $optin_list_id );
+        if ( $this->ems->bulk_update_enabled() ) {
+            $this->ems->bulk_change( $user_id, $bulk_data );
         }
     }
 

@@ -241,6 +241,11 @@ abstract class Settings {
         ?>
         <input type="text" class="widefat" name="<?php echo esc_attr( $this->get_option_key( $args['name'] ) ); ?>" value="<?php echo esc_attr( $this->get_option( $args['name'], $default ) ); ?>" />
         <?php
+        if ( ! empty( $args['description'] ) ) {
+            ?>
+            <p class="description"><?php echo esc_html( $args['description'] ); ?></p>
+            <?php
+        }
     }
 
     /**

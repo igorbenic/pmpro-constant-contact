@@ -42,23 +42,48 @@ class Checkout {
             return;
         }
 
-        foreach ( $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] as $list_id ) {
-            $this->ems->subscribe( $user_id, $list_id );
+        $bulk_data = array(
+            'lists' => array(
+                'add' => array(),
+                'remove' => array()
+            )
+        );
+
+        $checked_lists = isset( $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] ) ? $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] : [];
+
+        if ( $checked_lists ) {
+            foreach ( $checked_lists as $list_id ) {
+                if ( ! $this->ems->bulk_update_enabled() ) {
+                    $this->ems->subscribe( $user_id, $list_id );
+                }
+                $bulk_data['lists']['add'] = $list_id;
+            }
         }
 
         $optin_lists = $this->ems->get_option( 'optin' );
-        if ( empty( $optin_lists ) ) {
-            return;
+
+        if ( ! empty( $optin_lists ) ) {
+            // If we are showing some of those lists and user has unchecked them,
+            // Make sure the user is unsuscribed.
+            foreach ( $optin_lists as $index => $optin_list_id ) {
+                if ( in_array( $optin_list_id, $checked_lists ) ) {
+                    continue;
+                }
+
+                if ( ! $this->ems->bulk_update_enabled() ) {
+                    $this->ems->unsubscribe( $user_id, $optin_list_id );
+                }
+                $bulk_data['lists']['remove'] = $optin_list_id;
+            }
         }
 
-        // If we are showing some of those lists and user has unchecked them,
-        // Make sure the user is unsubscribed.
-        foreach ( $optin_lists as $index => $optin_list_id ) {
-            if ( in_array( $optin_list_id, $_REQUEST['_pmpro_' . $this->ems->get_settings_id() . '_opt_in'] ) ) {
-                continue;
-            }
+        $bulk_data = apply_filters( 'pmpro_' . $this->ems->get_settings_id() . '_bulk_data_on_checkout',
+            $bulk_data,
+            $user_id
+        );
 
-            $this->ems->unsubscribe( $user_id, $optin_list_id );
+        if ( $this->ems->bulk_update_enabled() ) {
+            $this->ems->bulk_change( $user_id, $bulk_data );
         }
     }
 
@@ -96,9 +121,12 @@ class Checkout {
             <div class="pmpro_checkout-fields">
                 <?php
                 if ( count( $optin_lists ) < 2 ) :
+                    $is_subscribed = in_array( current( $optin_lists ), $subscribed_lists );
+
                     ?>
                     <div class="pmpro_checkout-field pmpro_checkout-field-checkbox pmpro_checkout-field-<?php echo esc_attr( $this->ems->get_settings_id() ); ?>-pmp-opt-in">
                         <input
+                            <?php checked( $is_subscribed ); ?>
                             type="checkbox"
                             id="_pmpro_<?php echo esc_attr( $this->ems->get_settings_id() ); ?>_opt_in"
                             name="_pmpro_<?php echo esc_attr( $this->ems->get_settings_id() ); ?>_opt_in[]"

@@ -82,11 +82,12 @@ class Constant_Contact extends EMS {
      * @return void
      */
     public function settings_description() {
+
+        $constant_contact_link = sprintf( '<a href="http://www.constantcontact.com/index.jsp?pn=paidmembershipspro" target="_blank">%s</a>', __( 'Get one here', 'pmpro-constantcontact' ) );
         ?>
 
-        <p>This plugin will integrate your site with Constant Contact. You can choose one or more Constant Contact lists to have users subscribed to when they signup for your site.</p>
-        <p>If you have <a href="http://www.paidmembershipspro.com">Paid Memberships Pro</a> installed, you can also choose one or more Constant Contact lists to have members subscribed to for each membership level.</p>
-        <p>Don't have a Constant Contact account? <a href="http://www.constantcontact.com/index.jsp?pn=paidmembershipspro" target="_blank">Get one here</a>. It's free.</p>
+        <p><?php esc_html_e( 'This plugin will integrate your site with Constant Contact. You can choose one or more Constant Contact lists to have users subscribed to when they signup for your site.', 'pmpro-constantcontact' ); ?></p>
+        <p><?php echo sprintf( esc_html__('Don\'t have a Constant Contact account? %s. It\'s free.', 'pmpro-constantcontact' ), $constant_contact_link ); ?></p>
 
         <?php
     }
