@@ -135,6 +135,9 @@ class EMS extends Settings {
         $non_unique_lists = array_unique( $non_unique_lists );
         if ( $non_unique_lists ) {
             $lists = $this->get_lists();
+            if ( is_wp_error( $lists ) ) {
+                return;
+            }
             ?>
             <div class="notice notice-error">
                 <p><?php esc_html_e( 'These lists are set more than once in the settings below.', 'pmpro-constantcontact'  ); ?></p>
@@ -1160,12 +1163,22 @@ class EMS extends Settings {
         $oauth = get_option( 'pmpro_' . $this->id . '_oauth' );
 
         if ( $oauth && ! empty( $oauth['access_token'] ) ) {
+            $next = wp_next_scheduled( 'pmpro_' . $this->get_settings_id() . '_refresh_oauth_token' );
             $url = $this->get_api()->get_authorize_url();
             ?>
                 <p class="pmpro-oauth-connected">
                     <?php esc_html_e( 'Connected', 'pmpro-constantcontact' ); ?>
                     <a class="button button-secondary button-small" href="<?php echo esc_url( $url ); ?>"><?php esc_html_e( 'Having issues? Re-authorize', 'pmpro-constantcontact' ); ?></a>
                 </p>
+                <?php
+                if ( $next ) {
+                    ?>
+                    <p class="description">
+                        <em><?php esc_html_e( 'Token will expire at:', 'pmpro-constantcontact' ); ?> <?php echo date( 'Y-m-d H:i', $next ); ?>. <?php esc_html_e( 'It is scheduled to be re-connected automatically.', 'pmpro-constantcontact' ); ?></em>
+                    </p>
+                    <?php
+                }
+                ?>
                 <p class="description">
                     <em><?php esc_html_e( 'Changing Client Secret or Client ID will reset connection as well.', 'pmpro-constantcontact' ); ?></em>
                 </p>
