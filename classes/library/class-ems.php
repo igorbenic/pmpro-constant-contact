@@ -1303,7 +1303,7 @@ class EMS extends Settings {
          * No new levels so we're assuming they're cancelling.
          * We'll add a 'Non-member' tag to the subscriber and remove it if they become a member again
          */
-        if( empty( $new_tags ) ) {
+        if( empty( $new_tags ) && ! $new_levels ) {
             if ( ! empty( $data[ 'non_member' ] ) ) {
                 $subscribe_tags = array_merge( $subscribe_tags, $data[ 'non_member' ] );
                 $subscribe_tags = array_unique( $subscribe_tags );
@@ -1418,7 +1418,9 @@ class EMS extends Settings {
         $data            = $this->get_changed_data( $list_levels, $old_levels, $new_levels );
         $non_member_list = $this->get_option( 'non_member_list' );
 
-        if( empty( $data['new'] ) ) {
+        // If new lists data is empty & there are no new levels, set it as non_member.
+        // If new lists data is empty, but user is still added to a level, make sure it's not set for non_member.
+        if( empty( $data['new'] ) && ! $new_levels ) {
             if ( ! empty( $non_member_list ) ) {
                 $data['new'] = array_merge( $data['new'], $non_member_list );
                 $data['new'] = array_unique( $data['new'] );
