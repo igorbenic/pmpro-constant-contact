@@ -350,7 +350,7 @@ class Constant_Contact_API extends API {
 
         foreach ( $values as $value ) {
             $index = array_search( $value, $contact_data );
-            if ( $index >= 0 ) {
+            if ( false !== $index && $index >= 0 ) {
                 unset( $contact_data[ $index ] );
             }
         }

@@ -71,6 +71,13 @@ class EMS extends Settings {
     protected $plugin_file = null;
 
     /**
+     * Bulk Queue for updating data.
+     *
+     * @var array
+     */
+    protected $bulk_queue = [];
+
+    /**
      * Constructor method.
      */
     public function __construct() {
@@ -88,12 +95,42 @@ class EMS extends Settings {
         add_filter( 'plugin_row_meta', [ $this, 'row_meta' ], 10, 2 );
         add_filter( 'plugin_action_links_' . plugin_basename( $this->plugin_file ), [ $this, 'plugin_links' ] );
 
+        if ( $this->bulk_update_enabled() ) {
+            add_action( 'template_redirect', [ $this, 'process_bulk_change' ], 2 );
+            add_filter( 'wp_redirect', [ $this, 'process_bulk_change' ], 100 );
+            add_action( 'pmpro_membership_post_membership_expiry', [ $this, 'process_bulk_change' ] );
+            add_action( 'shutdown', [ $this, 'process_bulk_change' ] );
+
+        }
+
         $this->get_checkout();
         $this->get_profile();
         $this->get_csv();
         $this->get_cache();
 
         parent::__construct();
+    }
+
+
+    /**
+     * Process bulk change data.
+     *
+     * @param mixed $passed_data This is the data passed when using add_filter. Should be returned.
+     * @return mixed|void|null
+     */
+    public function process_bulk_change( $passed_data = null ) {
+        if ( empty( $this->bulk_queue ) ) {
+            return $passed_data;
+        }
+
+        foreach ( $this->bulk_queue as $user_id => $bulk_data ) {
+            $this->bulk_change( $user_id, $bulk_data );
+        }
+
+        // Clearing the queue to not be procesed more than once.
+        $this->bulk_queue = [];
+
+        return $passed_data;
     }
 
     /**
@@ -1232,7 +1269,7 @@ class EMS extends Settings {
             );
 
             if ( $this->bulk_update_enabled() ) {
-                $this->bulk_change( $user_id, $bulk_data );
+                $this->bulk_queue( $user_id, $bulk_data );
             }
 
             do_action( 'pmpro_' . $this->get_settings_id() . '_data_changed', $bulk_data, $user, $old_levels, $new_levels );
@@ -1260,6 +1297,14 @@ class EMS extends Settings {
         }
 
         return $this->get_api()->bulk_update( $contact_id, $bulk_data, $user_id );
+    }
+
+    public function bulk_queue( $user_id, $bulk_data ) {
+        if ( isset( $this->bulk_queue[ $user_id ] ) ) {
+            $this->bulk_queue[ $user_id ] = array_merge_recursive( $this->bulk_queue[ $user_id ], $bulk_data );
+            return;
+        }
+        $this->bulk_queue[ $user_id ] = $bulk_data;
     }
 
     /**

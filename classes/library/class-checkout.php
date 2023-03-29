@@ -56,7 +56,7 @@ class Checkout {
                 if ( ! $this->ems->bulk_update_enabled() ) {
                     $this->ems->subscribe( $user_id, $list_id );
                 }
-                $bulk_data['lists']['add'] = $list_id;
+                $bulk_data['lists']['add'][] = $list_id;
             }
         }
 
@@ -73,7 +73,7 @@ class Checkout {
                 if ( ! $this->ems->bulk_update_enabled() ) {
                     $this->ems->unsubscribe( $user_id, $optin_list_id );
                 }
-                $bulk_data['lists']['remove'] = $optin_list_id;
+                $bulk_data['lists']['remove'][] = $optin_list_id;
             }
         }
 
@@ -83,7 +83,7 @@ class Checkout {
         );
 
         if ( $this->ems->bulk_update_enabled() ) {
-            $this->ems->bulk_change( $user_id, $bulk_data );
+            $this->ems->bulk_queue( $user_id, $bulk_data );
         }
     }
 
