@@ -418,6 +418,8 @@ class EMS extends Settings {
             return;
         }
 
+        $this->reset_cache();
+        $this->clear_oauth();
         $this->hide_sections_and_show_error( sprintf( __( 'An Error occurred: %s', 'pmpro-constantcontact' ), $connection->get_error_message() ) );
     }
 
@@ -1236,9 +1238,13 @@ class EMS extends Settings {
 
         $url = $this->get_api()->get_authorize_url();
         ?>
-        <a class="button button-secondary" href="<?php echo esc_url( $url ); ?>">
-            <?php esc_html_e( 'Connect', 'pmpro-constantcontact'); ?>
-        </a>
+        <p class="pmpro-oauth-error">
+            <?php esc_html_e( 'Not Connected', 'pmpro-constantcontact' ); ?>
+
+            <a class="button button-secondary" href="<?php echo esc_url( $url ); ?>">
+                <?php esc_html_e( 'Connect', 'pmpro-constantcontact'); ?>
+            </a>
+        </p>
         <?php
     }
 
@@ -1340,24 +1346,32 @@ class EMS extends Settings {
         $new_tags = array_unique( $new_tags );
         $old_tags = array_unique( $old_tags );
 
-        // Build a unique array of tags to subscribe to contact and remove from contact.
-        $subscribe_tags = array_diff( $new_tags, $old_tags );
+        // Don't unsubcribe from tags/lists that we'll add want to subscribe again.
         $unsubscribe_tags = array_diff( $old_tags, $new_tags );
 
         /**
          * No new levels so we're assuming they're cancelling.
          * We'll add a 'Non-member' tag to the subscriber and remove it if they become a member again
          */
-        if( empty( $new_tags ) && ! $new_levels ) {
-            if ( ! empty( $data[ 'non_member' ] ) ) {
+        if ( ! empty( $data[ 'non_member' ] ) ) {
+            if( empty( $new_tags ) && ! $new_levels ) {
+
                 $subscribe_tags = array_merge( $subscribe_tags, $data[ 'non_member' ] );
                 $subscribe_tags = array_unique( $subscribe_tags );
-            }
-        } else {
-            if ( ! empty( $data[ 'non_member' ] ) ) {
+
+            } else {
+
+                if ( ! empty( $subscribe_tags ) ) {
+                    // Make sure we remove only "Non Member" tags that aren't assigned on other tags.
+                    $data[ 'non_member' ] = array_diff( $data[ 'non_member' ], $subscribe_tags );
+                }
+
                 $unsubscribe_tags = array_merge( $unsubscribe_tags, $data[ 'non_member' ] );
                 $unsubscribe_tags = array_unique( $unsubscribe_tags );
             }
+
+            // We won't unsubscribe from lists/tags that should be added.
+            $unsubscribe_tags = array_diff( $unsubscribe_tags, $subscribe_tags );
         }
 
         return [
@@ -1463,18 +1477,29 @@ class EMS extends Settings {
         $data            = $this->get_changed_data( $list_levels, $old_levels, $new_levels );
         $non_member_list = $this->get_option( 'non_member_list' );
 
+        // No New levels?
+
         // If new lists data is empty & there are no new levels, set it as non_member.
         // If new lists data is empty, but user is still added to a level, make sure it's not set for non_member.
-        if( empty( $data['new'] ) && ! $new_levels ) {
-            if ( ! empty( $non_member_list ) ) {
-                $data['new'] = array_merge( $data['new'], $non_member_list );
-                $data['new'] = array_unique( $data['new'] );
+        if ( ! empty( $non_member_list ) ) {
+            if ( empty( $data['new'] ) && ! $new_levels) {
+
+                $data['new'] = array_merge($data['new'], $non_member_list);
+                $data['new'] = array_unique($data['new']);
+
+            } else {
+                if ( ! empty( $data['new'] ) ) {
+                    // Make sure we remove only "Non Member" lists that aren't assigned on other levels.
+                    $non_member_list = array_diff($non_member_list, $data['new']);
+                }
+
+                $data['old'] = array_merge($data['old'], $non_member_list);
+                $data['old'] = array_unique($data['old']);
+
             }
-        } else {
-            if ( ! empty( $non_member_list ) ) {
-                $data['old'] = array_merge( $data['old'], $non_member_list );
-                $data['old'] = array_unique( $data['old'] );
-            }
+
+            // We won't unsubscribe from lists that should be added.
+            $data['old'] = array_diff( $data['old'], $data['new'] );
         }
 
         return [
