@@ -292,7 +292,7 @@ class Constant_Contact_API extends API {
             unset( $lists[ $index ] );
         }
 
-        $contact['list_memberships'] = $lists;
+        $contact['list_memberships'] = array_values( $lists );
 
         return $this->update_contact( $contact_id, $contact );
     }
@@ -325,7 +325,7 @@ class Constant_Contact_API extends API {
             unset( $tags[ $index ] );
         }
 
-        $contact['taggings'] = $tags;
+        $contact['taggings'] = array_values( $tags );
 
         return $this->update_contact( $contact_id, $contact );
     }
