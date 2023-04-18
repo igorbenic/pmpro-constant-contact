@@ -355,7 +355,7 @@ class Constant_Contact_API extends API {
             }
         }
 
-        $contact[ $key ] = $contact_data;
+        $contact[ $key ] = array_values( $contact_data );
 
         return $contact;
     }
@@ -447,6 +447,10 @@ class Constant_Contact_API extends API {
      * @return array|int|mixed|true|\WP_Error|null
      */
     public function bulk_update( $contact_id, $bulk_data ) {
+        if ( is_wp_error( $contact_id ) ) {
+            return $contact_id;
+        }
+
         $include = apply_filters(
             'pmpro_' . $this->ems->get_settings_id() . '_include_data',
             [

@@ -1348,7 +1348,7 @@ class EMS extends Settings {
 
         // Don't unsubcribe from tags/lists that we'll add want to subscribe again.
         $unsubscribe_tags = array_diff( $old_tags, $new_tags );
-
+        $subscribe_tags   = $new_tags;
         /**
          * No new levels so we're assuming they're cancelling.
          * We'll add a 'Non-member' tag to the subscriber and remove it if they become a member again
